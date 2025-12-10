@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { Character } from '../models/Character';
 import { CombatState, CombatPhase } from '../models/CombatState';
-import { Ability, ABILITIES_LIBRARY } from '../models/Ability';
+import { Ability, ABILITIES_LIBRARY, AbilityType } from '../models/Ability';
+import { CharacterSprite } from '../sprites/CharacterSprite';
+import { ParticleEffects } from '../effects/ParticleEffects';
 
 export class CombatScene extends Phaser.Scene {
   private combatState!: CombatState;
-  private playerSprite!: Phaser.GameObjects.Rectangle;
-  private enemySprite!: Phaser.GameObjects.Rectangle;
+  private playerSprite!: CharacterSprite;
+  private enemySprite!: CharacterSprite;
   private playerHealthBar!: Phaser.GameObjects.Graphics;
   private enemyHealthBar!: Phaser.GameObjects.Graphics;
   private playerManaBar!: Phaser.GameObjects.Graphics;
@@ -25,15 +27,27 @@ export class CombatScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Create background
-    this.add.rectangle(width / 2, height / 2, width, height, 0x1a1a2e);
+    // Create gradient background
+    this.createGradientBackground();
 
-    // Create title
+    // Create floating particles
+    this.createAmbientParticles();
+
+    // Create title with glow effect
     const title = this.add.text(width / 2, 30, 'COMBAT', {
-      font: 'bold 32px monospace',
-      color: '#ff6b6b'
+      font: 'bold 36px Arial',
+      color: '#ffffff',
+      stroke: '#ff6b6b',
+      strokeThickness: 4
     });
     title.setOrigin(0.5);
+    this.tweens.add({
+      targets: title,
+      alpha: { from: 0.8, to: 1 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1
+    });
 
     // Initialize combat
     this.initializeCombat();
@@ -48,6 +62,72 @@ export class CombatScene extends Phaser.Scene {
 
     // Update UI
     this.updateUI();
+  }
+
+  private createGradientBackground(): void {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Create multiple gradient layers for depth
+    const bg1 = this.add.rectangle(width / 2, height / 2, width, height, 0x0f0e17);
+
+    const graphics = this.add.graphics();
+
+    // Top gradient
+    graphics.fillGradientStyle(0x3d1f47, 0x3d1f47, 0x1a1a2e, 0x1a1a2e, 1, 1, 0.7, 0.7);
+    graphics.fillRect(0, 0, width, height / 2);
+
+    // Bottom gradient
+    graphics.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x0f0e17, 0x0f0e17, 0.7, 0.7, 1, 1);
+    graphics.fillRect(0, height / 2, width, height / 2);
+
+    // Add some decorative elements
+    for (let i = 0; i < 30; i++) {
+      const star = this.add.circle(
+        Phaser.Math.Between(0, width),
+        Phaser.Math.Between(0, height / 2),
+        Phaser.Math.Between(1, 3),
+        0xffffff,
+        Phaser.Math.FloatBetween(0.3, 0.8)
+      );
+
+      this.tweens.add({
+        targets: star,
+        alpha: { from: star.alpha, to: 0 },
+        duration: Phaser.Math.Between(2000, 4000),
+        yoyo: true,
+        repeat: -1
+      });
+    }
+  }
+
+  private createAmbientParticles(): void {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    for (let i = 0; i < 15; i++) {
+      const particle = this.add.circle(
+        Phaser.Math.Between(0, width),
+        Phaser.Math.Between(0, height),
+        Phaser.Math.Between(2, 4),
+        0x4ecdc4,
+        0.3
+      );
+
+      this.tweens.add({
+        targets: particle,
+        y: particle.y - Phaser.Math.Between(50, 150),
+        x: particle.x + Phaser.Math.Between(-20, 20),
+        alpha: 0,
+        duration: Phaser.Math.Between(3000, 6000),
+        repeat: -1,
+        onRepeat: () => {
+          particle.x = Phaser.Math.Between(0, width);
+          particle.y = height;
+          particle.alpha = 0.3;
+        }
+      });
+    }
   }
 
   private initializeCombat(): void {
@@ -94,23 +174,25 @@ export class CombatScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Player sprite (left side)
-    this.playerSprite = this.add.rectangle(200, height / 2, 100, 150, 0x4ecdc4);
-    this.playerSprite.setStrokeStyle(3, 0xffffff);
+    // Player sprite (left side) - artsy hero character
+    this.playerSprite = new CharacterSprite(this, 250, height / 2, true);
 
-    const playerLabel = this.add.text(200, height / 2 + 100, 'HERO', {
-      font: 'bold 20px monospace',
-      color: '#ffffff'
+    const playerLabel = this.add.text(250, height / 2 + 130, 'HERO', {
+      font: 'bold 22px Arial',
+      color: '#4ecdc4',
+      stroke: '#000000',
+      strokeThickness: 3
     });
     playerLabel.setOrigin(0.5);
 
-    // Enemy sprite (right side)
-    this.enemySprite = this.add.rectangle(width - 200, height / 2, 100, 150, 0xff6b6b);
-    this.enemySprite.setStrokeStyle(3, 0xffffff);
+    // Enemy sprite (right side) - artsy dark knight character
+    this.enemySprite = new CharacterSprite(this, width - 250, height / 2, false);
 
-    const enemyLabel = this.add.text(width - 200, height / 2 + 100, 'DARK KNIGHT', {
-      font: 'bold 20px monospace',
-      color: '#ffffff'
+    const enemyLabel = this.add.text(width - 250, height / 2 + 130, 'DARK KNIGHT', {
+      font: 'bold 22px Arial',
+      color: '#ff6b6b',
+      stroke: '#000000',
+      strokeThickness: 3
     });
     enemyLabel.setOrigin(0.5);
   }
@@ -123,20 +205,24 @@ export class CombatScene extends Phaser.Scene {
     this.playerHealthBar = this.add.graphics();
     this.playerManaBar = this.add.graphics();
 
-    this.playerStatsText = this.add.text(200, height / 2 - 120, '', {
-      font: '14px monospace',
+    this.playerStatsText = this.add.text(250, height / 2 - 130, '', {
+      font: 'bold 15px Arial',
       color: '#ffffff',
-      align: 'center'
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 2
     });
     this.playerStatsText.setOrigin(0.5);
 
     // Enemy health bar
     this.enemyHealthBar = this.add.graphics();
 
-    this.enemyStatsText = this.add.text(width - 200, height / 2 - 120, '', {
-      font: '14px monospace',
+    this.enemyStatsText = this.add.text(width - 250, height / 2 - 130, '', {
+      font: 'bold 15px Arial',
       color: '#ffffff',
-      align: 'center'
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 2
     });
     this.enemyStatsText.setOrigin(0.5);
   }
@@ -144,26 +230,30 @@ export class CombatScene extends Phaser.Scene {
   private createTurnIndicator(): void {
     const width = this.cameras.main.width;
 
-    this.turnText = this.add.text(width / 2, 80, '', {
-      font: 'bold 24px monospace',
-      color: '#4ecdc4'
+    this.turnText = this.add.text(width / 2, 85, '', {
+      font: 'bold 26px Arial',
+      color: '#4ecdc4',
+      stroke: '#000000',
+      strokeThickness: 3
     });
     this.turnText.setOrigin(0.5);
   }
 
   private createCombatLog(): void {
     const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
 
-    // Log background
-    const logBg = this.add.rectangle(width / 2, 150, 500, 120, 0x0f3460, 0.7);
-    logBg.setStrokeStyle(2, 0x4ecdc4);
+    // Modern log background with gradient
+    const graphics = this.add.graphics();
+    graphics.fillGradientStyle(0x16213e, 0x16213e, 0x0f1626, 0x0f1626, 0.9, 0.9, 0.95, 0.95);
+    graphics.fillRoundedRect(width / 2 - 260, 120, 520, 100, 12);
+    graphics.lineStyle(3, 0x4ecdc4, 0.8);
+    graphics.strokeRoundedRect(width / 2 - 260, 120, 520, 100, 12);
 
-    this.logText = this.add.text(width / 2, 150, '', {
-      font: '12px monospace',
-      color: '#ffffff',
+    this.logText = this.add.text(width / 2, 170, '', {
+      font: '13px Arial',
+      color: '#e0e0e0',
       align: 'center',
-      wordWrap: { width: 480 }
+      wordWrap: { width: 500 }
     });
     this.logText.setOrigin(0.5);
   }
@@ -189,67 +279,130 @@ export class CombatScene extends Phaser.Scene {
   private createAbilityCard(x: number, y: number, ability: Ability): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
 
-    // Card background
-    const bg = this.add.rectangle(0, 0, 110, 140, 0x16213e);
-    bg.setStrokeStyle(2, 0x4ecdc4);
+    // Determine card color based on ability type
+    let cardColor = 0x1a2332;
+    let accentColor = 0x4ecdc4;
+
+    switch (ability.type) {
+      case AbilityType.ATTACK:
+        accentColor = 0xff6b6b;
+        break;
+      case AbilityType.HEAL:
+        accentColor = 0x00ff88;
+        break;
+      case AbilityType.DEFEND:
+        accentColor = 0x4ecdc4;
+        break;
+      case AbilityType.SPECIAL:
+        accentColor = 0xffd700;
+        break;
+    }
+
+    // Card background with gradient
+    const graphics = this.add.graphics();
+    graphics.fillGradientStyle(cardColor, cardColor, 0x0f1626, 0x0f1626, 1, 1, 1, 1);
+    graphics.fillRoundedRect(-58, -73, 116, 146, 8);
+    graphics.lineStyle(3, accentColor, 1);
+    graphics.strokeRoundedRect(-58, -73, 116, 146, 8);
 
     // Card name
-    const name = this.add.text(0, -50, ability.name, {
-      font: 'bold 12px monospace',
+    const name = this.add.text(0, -52, ability.name, {
+      font: 'bold 13px Arial',
       color: '#ffffff',
       align: 'center',
-      wordWrap: { width: 100 }
+      wordWrap: { width: 105 }
     });
     name.setOrigin(0.5);
 
-    // Mana cost
-    const manaCost = this.add.text(-45, -60, ability.manaCost.toString(), {
-      font: 'bold 16px monospace',
-      color: '#4ecdc4'
-    });
+    // Mana cost with modern styling
+    const manaCircle = this.add.circle(-48, -63, 14, accentColor);
+    manaCircle.setStrokeStyle(2, 0xffffff);
 
-    const manaCircle = this.add.circle(-45, -60, 12, 0x0f3460);
-    manaCircle.setStrokeStyle(2, 0x4ecdc4);
+    const manaCost = this.add.text(-48, -63, ability.manaCost.toString(), {
+      font: 'bold 17px Arial',
+      color: '#ffffff'
+    });
+    manaCost.setOrigin(0.5);
+
+    // Type indicator icon
+    const typeIcon = this.add.text(48, -63, this.getAbilityIcon(ability.type), {
+      font: '16px Arial',
+      color: '#' + accentColor.toString(16).padStart(6, '0')
+    });
+    typeIcon.setOrigin(0.5);
 
     // Description
     const desc = this.add.text(0, 0, ability.description, {
-      font: '10px monospace',
-      color: '#aaaaaa',
+      font: '11px Arial',
+      color: '#b0b0b0',
       align: 'center',
-      wordWrap: { width: 100 }
+      wordWrap: { width: 105 }
     });
     desc.setOrigin(0.5);
 
     // Cooldown indicator
-    const cooldownText = this.add.text(0, 50, '', {
-      font: 'bold 14px monospace',
+    const cooldownText = this.add.text(0, 55, '', {
+      font: 'bold 12px Arial',
       color: '#ff6b6b'
     });
     cooldownText.setOrigin(0.5);
 
-    card.add([bg, manaCircle, manaCost, name, desc, cooldownText]);
-    card.setSize(110, 140);
+    card.add([graphics, manaCircle, manaCost, typeIcon, name, desc, cooldownText]);
+    card.setSize(116, 146);
     card.setData('ability', ability);
-    card.setData('bg', bg);
+    card.setData('graphics', graphics);
     card.setData('cooldownText', cooldownText);
+    card.setData('accentColor', accentColor);
+    card.setData('originalY', y);
 
+    // FIXED: Make entire card clickable by using proper bounds
     card.setInteractive(
-      new Phaser.Geom.Rectangle(-55, -70, 110, 140),
+      new Phaser.Geom.Rectangle(-58, -73, 116, 146),
       Phaser.Geom.Rectangle.Contains
     );
 
-    // Hover effects
+    // Enhanced hover effects
     card.on('pointerover', () => {
       if (ability.canUse(this.combatState.player.currentMana) &&
           this.combatState.phase === CombatPhase.PLAYER_TURN) {
-        bg.setFillStyle(0x1f2f4e);
         this.game.canvas.style.cursor = 'pointer';
+
+        // Lift card up
+        this.tweens.add({
+          targets: card,
+          y: y - 15,
+          scale: 1.05,
+          duration: 150,
+          ease: 'Power2'
+        });
+
+        // Redraw with highlight
+        graphics.clear();
+        graphics.fillGradientStyle(0x2a3545, 0x2a3545, 0x1a2332, 0x1a2332, 1, 1, 1, 1);
+        graphics.fillRoundedRect(-58, -73, 116, 146, 8);
+        graphics.lineStyle(4, accentColor, 1);
+        graphics.strokeRoundedRect(-58, -73, 116, 146, 8);
       }
     });
 
     card.on('pointerout', () => {
-      bg.setFillStyle(0x16213e);
       this.game.canvas.style.cursor = 'default';
+
+      // Return to original position
+      this.tweens.add({
+        targets: card,
+        y: y,
+        scale: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Redraw normal
+      graphics.clear();
+      graphics.fillGradientStyle(cardColor, cardColor, 0x0f1626, 0x0f1626, 1, 1, 1, 1);
+      graphics.fillRoundedRect(-58, -73, 116, 146, 8);
+      graphics.lineStyle(3, accentColor, 1);
+      graphics.strokeRoundedRect(-58, -73, 116, 146, 8);
     });
 
     card.on('pointerdown', () => {
@@ -259,39 +412,65 @@ export class CombatScene extends Phaser.Scene {
     return card;
   }
 
+  private getAbilityIcon(type: AbilityType): string {
+    switch (type) {
+      case AbilityType.ATTACK: return '⚔️';
+      case AbilityType.HEAL: return '❤️';
+      case AbilityType.DEFEND: return '🛡️';
+      case AbilityType.SPECIAL: return '✨';
+      default: return '•';
+    }
+  }
+
   private createEndTurnButton(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    const button = this.add.container(width - 120, height - 50);
+    const button = this.add.container(width - 140, height - 60);
 
-    const bg = this.add.rectangle(0, 0, 180, 40, 0xff6b6b);
-    bg.setStrokeStyle(2, 0xffffff);
+    // Modern button with gradient
+    const graphics = this.add.graphics();
+    graphics.fillGradientStyle(0xff6b6b, 0xff6b6b, 0xcc5555, 0xcc5555, 1, 1, 1, 1);
+    graphics.fillRoundedRect(-95, -25, 190, 50, 10);
+    graphics.lineStyle(3, 0xffffff, 1);
+    graphics.strokeRoundedRect(-95, -25, 190, 50, 10);
 
     const label = this.add.text(0, 0, 'End Turn', {
-      font: 'bold 16px monospace',
-      color: '#ffffff'
+      font: 'bold 18px Arial',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2
     });
     label.setOrigin(0.5);
 
-    button.add([bg, label]);
-    button.setSize(180, 40);
-    button.setData('bg', bg);
+    button.add([graphics, label]);
+    button.setSize(190, 50);
+    button.setData('graphics', graphics);
+
+    // FIXED: Proper hitbox covering entire button
     button.setInteractive(
-      new Phaser.Geom.Rectangle(-90, -20, 180, 40),
+      new Phaser.Geom.Rectangle(-95, -25, 190, 50),
       Phaser.Geom.Rectangle.Contains
     );
 
     button.on('pointerover', () => {
       if (this.combatState.phase === CombatPhase.PLAYER_TURN) {
-        bg.setFillStyle(0xff8888);
         this.game.canvas.style.cursor = 'pointer';
+        graphics.clear();
+        graphics.fillGradientStyle(0xff8888, 0xff8888, 0xdd6666, 0xdd6666, 1, 1, 1, 1);
+        graphics.fillRoundedRect(-95, -25, 190, 50, 10);
+        graphics.lineStyle(4, 0xffffff, 1);
+        graphics.strokeRoundedRect(-95, -25, 190, 50, 10);
       }
     });
 
     button.on('pointerout', () => {
-      bg.setFillStyle(0xff6b6b);
       this.game.canvas.style.cursor = 'default';
+      graphics.clear();
+      graphics.fillGradientStyle(0xff6b6b, 0xff6b6b, 0xcc5555, 0xcc5555, 1, 1, 1, 1);
+      graphics.fillRoundedRect(-95, -25, 190, 50, 10);
+      graphics.lineStyle(3, 0xffffff, 1);
+      graphics.strokeRoundedRect(-95, -25, 190, 50, 10);
     });
 
     button.on('pointerdown', () => {
@@ -322,12 +501,15 @@ export class CombatScene extends Phaser.Scene {
     );
 
     if (success) {
-      this.playAttackAnimation(this.playerSprite, this.enemySprite);
+      this.playAbilityAnimation(ability, this.playerSprite, this.enemySprite);
       this.updateUI();
 
       // Check if combat is over
       if (this.combatState.isGameOver()) {
-        this.time.delayedCall(1000, () => {
+        if (this.combatState.enemy.isDead) {
+          this.enemySprite.playDeathAnimation();
+        }
+        this.time.delayedCall(1500, () => {
           this.showGameOver();
         });
       }
@@ -362,12 +544,15 @@ export class CombatScene extends Phaser.Scene {
         this.combatState.player
       );
 
-      this.playAttackAnimation(this.enemySprite, this.playerSprite);
+      this.playAbilityAnimation(randomAbility, this.enemySprite, this.playerSprite);
       this.updateUI();
 
       // Check if combat is over
       if (this.combatState.isGameOver()) {
-        this.time.delayedCall(1000, () => {
+        if (this.combatState.player.isDead) {
+          this.playerSprite.playDeathAnimation();
+        }
+        this.time.delayedCall(1500, () => {
           this.showGameOver();
         });
         return;
@@ -381,48 +566,75 @@ export class CombatScene extends Phaser.Scene {
     });
   }
 
-  private playAttackAnimation(attacker: Phaser.GameObjects.Rectangle, target: Phaser.GameObjects.Rectangle): void {
-    const originalX = attacker.x;
+  private playAbilityAnimation(ability: Ability, attacker: CharacterSprite, target: CharacterSprite): void {
+    const attackerContainer = attacker.getContainer();
+    const targetContainer = target.getContainer();
 
-    this.tweens.add({
-      targets: attacker,
-      x: attacker.x + (attacker === this.playerSprite ? 50 : -50),
-      duration: 200,
-      yoyo: true,
-      onComplete: () => {
-        // Flash target
-        this.tweens.add({
-          targets: target,
-          alpha: 0.3,
-          duration: 100,
-          yoyo: true,
-          repeat: 2
-        });
-      }
-    });
+    // Play different effects based on ability
+    if (ability.id === 'fireball' || ability.id === 'arcane_missiles') {
+      attacker.playAttackAnimation(() => {
+        ParticleEffects.createFireballEffect(
+          this,
+          attackerContainer.x,
+          attackerContainer.y,
+          targetContainer.x,
+          targetContainer.y,
+          () => target.playHitAnimation()
+        );
+      });
+    } else if (ability.id === 'lightning') {
+      ParticleEffects.createLightningEffect(
+        this,
+        targetContainer.x,
+        targetContainer.y - 20,
+        () => target.playHitAnimation()
+      );
+    } else if (ability.id === 'heal') {
+      ParticleEffects.createHealEffect(
+        this,
+        attackerContainer.x,
+        attackerContainer.y
+      );
+    } else if (ability.id === 'defend') {
+      ParticleEffects.createDefendEffect(
+        this,
+        attackerContainer.x,
+        attackerContainer.y
+      );
+    } else {
+      // Default melee attack
+      attacker.playAttackAnimation(() => {
+        ParticleEffects.createSlashEffect(
+          this,
+          targetContainer.x,
+          targetContainer.y
+        );
+        target.playHitAnimation();
+      });
+    }
   }
 
   private updateUI(): void {
-    // Update health bars
+    // Update health bars with modern style
     this.updateHealthBar(
       this.playerHealthBar,
-      200,
-      this.cameras.main.height / 2 - 100,
+      250,
+      this.cameras.main.height / 2 - 105,
       this.combatState.player
     );
 
     this.updateHealthBar(
       this.enemyHealthBar,
-      this.cameras.main.width - 200,
-      this.cameras.main.height / 2 - 100,
+      this.cameras.main.width - 250,
+      this.cameras.main.height / 2 - 105,
       this.combatState.enemy
     );
 
     // Update mana bar
     this.updateManaBar(
       this.playerManaBar,
-      200,
-      this.cameras.main.height / 2 - 80,
+      250,
+      this.cameras.main.height / 2 - 85,
       this.combatState.player
     );
 
@@ -445,27 +657,28 @@ export class CombatScene extends Phaser.Scene {
     this.turnText.setColor(this.combatState.phase === CombatPhase.PLAYER_TURN ? '#4ecdc4' : '#ff6b6b');
 
     // Update combat log
-    const recentLogs = this.combatState.combatLog.slice(-5);
+    const recentLogs = this.combatState.combatLog.slice(-4);
     this.logText.setText(recentLogs.map(log => log.message).join('\n'));
 
     // Update ability cards
     this.abilityCards.forEach(card => {
       const ability = card.getData('ability') as Ability;
-      const bg = card.getData('bg') as Phaser.GameObjects.Rectangle;
+      const graphics = card.getData('graphics') as Phaser.GameObjects.Graphics;
       const cooldownText = card.getData('cooldownText') as Phaser.GameObjects.Text;
+      const accentColor = card.getData('accentColor') as number;
 
       // Update cooldown display
       if (ability.currentCooldown > 0) {
-        cooldownText.setText(`Cooldown: ${ability.currentCooldown}`);
+        cooldownText.setText(`CD: ${ability.currentCooldown}`);
       } else {
         cooldownText.setText('');
       }
 
       // Gray out unusable cards
       if (!ability.canUse(this.combatState.player.currentMana)) {
-        bg.setAlpha(0.5);
+        card.setAlpha(0.5);
       } else {
-        bg.setAlpha(1);
+        card.setAlpha(1);
       }
     });
   }
@@ -478,22 +691,39 @@ export class CombatScene extends Phaser.Scene {
   ): void {
     graphics.clear();
 
-    const barWidth = 120;
-    const barHeight = 12;
+    const barWidth = 140;
+    const barHeight = 16;
+
+    // Shadow
+    graphics.fillStyle(0x000000, 0.3);
+    graphics.fillRoundedRect(x - barWidth / 2 + 2, y + 2, barWidth, barHeight, 4);
 
     // Background
-    graphics.fillStyle(0x333333);
-    graphics.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+    graphics.fillStyle(0x2d2d44);
+    graphics.fillRoundedRect(x - barWidth / 2, y, barWidth, barHeight, 4);
 
-    // Health
+    // Health with gradient effect
     const healthPercent = character.getHealthPercentage() / 100;
-    const healthColor = healthPercent > 0.5 ? 0x00ff00 : healthPercent > 0.25 ? 0xffaa00 : 0xff0000;
-    graphics.fillStyle(healthColor);
-    graphics.fillRect(x - barWidth / 2, y, barWidth * healthPercent, barHeight);
+    const healthWidth = barWidth * healthPercent;
+
+    let color1, color2;
+    if (healthPercent > 0.5) {
+      color1 = 0x00ff88;
+      color2 = 0x00dd66;
+    } else if (healthPercent > 0.25) {
+      color1 = 0xffaa00;
+      color2 = 0xdd8800;
+    } else {
+      color1 = 0xff3333;
+      color2 = 0xdd0000;
+    }
+
+    graphics.fillGradientStyle(color1, color1, color2, color2, 1, 1, 1, 1);
+    graphics.fillRoundedRect(x - barWidth / 2, y, healthWidth, barHeight, 4);
 
     // Border
-    graphics.lineStyle(2, 0xffffff);
-    graphics.strokeRect(x - barWidth / 2, y, barWidth, barHeight);
+    graphics.lineStyle(2, 0xffffff, 0.8);
+    graphics.strokeRoundedRect(x - barWidth / 2, y, barWidth, barHeight, 4);
   }
 
   private updateManaBar(
@@ -504,59 +734,69 @@ export class CombatScene extends Phaser.Scene {
   ): void {
     graphics.clear();
 
-    const barWidth = 120;
-    const barHeight = 8;
+    const barWidth = 140;
+    const barHeight = 10;
+
+    // Shadow
+    graphics.fillStyle(0x000000, 0.3);
+    graphics.fillRoundedRect(x - barWidth / 2 + 2, y + 2, barWidth, barHeight, 3);
 
     // Background
-    graphics.fillStyle(0x333333);
-    graphics.fillRect(x - barWidth / 2, y, barWidth, barHeight);
+    graphics.fillStyle(0x2d2d44);
+    graphics.fillRoundedRect(x - barWidth / 2, y, barWidth, barHeight, 3);
 
-    // Mana
+    // Mana with gradient
     const manaPercent = character.getManaPercentage() / 100;
-    graphics.fillStyle(0x4ecdc4);
-    graphics.fillRect(x - barWidth / 2, y, barWidth * manaPercent, barHeight);
+    const manaWidth = barWidth * manaPercent;
+
+    graphics.fillGradientStyle(0x4ecdc4, 0x4ecdc4, 0x3dbdb6, 0x3dbdb6, 1, 1, 1, 1);
+    graphics.fillRoundedRect(x - barWidth / 2, y, manaWidth, barHeight, 3);
 
     // Border
-    graphics.lineStyle(1, 0xffffff);
-    graphics.strokeRect(x - barWidth / 2, y, barWidth, barHeight);
+    graphics.lineStyle(2, 0xffffff, 0.6);
+    graphics.strokeRoundedRect(x - barWidth / 2, y, barWidth, barHeight, 3);
   }
 
   private showGameOver(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Dim background
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.8);
+    // Dim background with gradient
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
 
     const winner = this.combatState.getWinner();
     const isVictory = winner === this.combatState.player;
 
-    // Game over text
-    const gameOverText = this.add.text(width / 2, height / 2 - 80, isVictory ? 'VICTORY!' : 'DEFEAT!', {
-      font: 'bold 64px monospace',
-      color: isVictory ? '#4ecdc4' : '#ff6b6b'
+    // Game over text with glow
+    const gameOverText = this.add.text(width / 2, height / 2 - 100, isVictory ? 'VICTORY!' : 'DEFEAT!', {
+      font: 'bold 72px Arial',
+      color: '#ffffff',
+      stroke: isVictory ? '#4ecdc4' : '#ff6b6b',
+      strokeThickness: 6
     });
     gameOverText.setOrigin(0.5);
 
     const resultText = this.add.text(
       width / 2,
-      height / 2,
+      height / 2 - 10,
       isVictory
         ? `You defeated the ${this.combatState.enemy.name}!`
         : `You were defeated by the ${this.combatState.enemy.name}...`,
       {
-        font: '20px monospace',
-        color: '#ffffff'
+        font: '22px Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2
       }
     );
     resultText.setOrigin(0.5);
 
     // Buttons
-    const restartButton = this.createGameOverButton(width / 2 - 110, height / 2 + 80, 'Restart', () => {
+    const restartButton = this.createGameOverButton(width / 2 - 120, height / 2 + 90, 'Restart', () => {
       this.scene.restart();
     });
 
-    const menuButton = this.createGameOverButton(width / 2 + 110, height / 2 + 80, 'Main Menu', () => {
+    const menuButton = this.createGameOverButton(width / 2 + 120, height / 2 + 90, 'Main Menu', () => {
       this.scene.start('MainMenuScene');
     });
 
@@ -564,9 +804,32 @@ export class CombatScene extends Phaser.Scene {
     this.tweens.add({
       targets: gameOverText,
       scale: { from: 0, to: 1 },
-      duration: 500,
+      duration: 600,
       ease: 'Back.easeOut'
     });
+
+    // Victory particles
+    if (isVictory) {
+      for (let i = 0; i < 50; i++) {
+        const particle = this.add.circle(
+          width / 2,
+          height / 2 - 100,
+          Phaser.Math.Between(3, 8),
+          0x4ecdc4
+        );
+
+        this.tweens.add({
+          targets: particle,
+          x: width / 2 + Phaser.Math.Between(-200, 200),
+          y: height / 2 - 100 + Phaser.Math.Between(-150, 150),
+          alpha: 0,
+          scale: 0,
+          duration: 1500,
+          delay: i * 20,
+          ease: 'Power2'
+        });
+      }
+    }
   }
 
   private createGameOverButton(
@@ -577,30 +840,46 @@ export class CombatScene extends Phaser.Scene {
   ): Phaser.GameObjects.Container {
     const button = this.add.container(x, y);
 
-    const bg = this.add.rectangle(0, 0, 180, 50, 0x4ecdc4);
-    bg.setStrokeStyle(2, 0xffffff);
+    const graphics = this.add.graphics();
+    graphics.fillGradientStyle(0x4ecdc4, 0x4ecdc4, 0x3dbdb6, 0x3dbdb6, 1, 1, 1, 1);
+    graphics.fillRoundedRect(-95, -28, 190, 56, 10);
+    graphics.lineStyle(3, 0xffffff);
+    graphics.strokeRoundedRect(-95, -28, 190, 56, 10);
 
     const label = this.add.text(0, 0, text, {
-      font: 'bold 18px monospace',
-      color: '#1a1a2e'
+      font: 'bold 20px Arial',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
     });
     label.setOrigin(0.5);
 
-    button.add([bg, label]);
-    button.setSize(180, 50);
+    button.add([graphics, label]);
+    button.setSize(190, 56);
+    button.setData('graphics', graphics);
+
+    // FIXED: Proper hitbox
     button.setInteractive(
-      new Phaser.Geom.Rectangle(-90, -25, 180, 50),
+      new Phaser.Geom.Rectangle(-95, -28, 190, 56),
       Phaser.Geom.Rectangle.Contains
     );
 
     button.on('pointerover', () => {
-      bg.setFillStyle(0x5fded7);
       this.game.canvas.style.cursor = 'pointer';
+      graphics.clear();
+      graphics.fillGradientStyle(0x5fded7, 0x5fded7, 0x4ecdc4, 0x4ecdc4, 1, 1, 1, 1);
+      graphics.fillRoundedRect(-95, -28, 190, 56, 10);
+      graphics.lineStyle(4, 0xffffff);
+      graphics.strokeRoundedRect(-95, -28, 190, 56, 10);
     });
 
     button.on('pointerout', () => {
-      bg.setFillStyle(0x4ecdc4);
       this.game.canvas.style.cursor = 'default';
+      graphics.clear();
+      graphics.fillGradientStyle(0x4ecdc4, 0x4ecdc4, 0x3dbdb6, 0x3dbdb6, 1, 1, 1, 1);
+      graphics.fillRoundedRect(-95, -28, 190, 56, 10);
+      graphics.lineStyle(3, 0xffffff);
+      graphics.strokeRoundedRect(-95, -28, 190, 56, 10);
     });
 
     button.on('pointerdown', () => {
