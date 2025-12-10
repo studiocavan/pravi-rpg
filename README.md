@@ -40,4 +40,3 @@ A web-based turn-based RPG game with combat mechanics inspired by **Magic: The G
 - Turn indicator
 - Smooth animations for attacks and effects
 - Victory/Defeat screens with restart option
-- 
